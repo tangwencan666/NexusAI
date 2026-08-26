@@ -22,6 +22,7 @@ uploads/
 data/
 work/
 logs/
+*.pid
 *.log
 .mypy_cache/
 .ruff_cache/

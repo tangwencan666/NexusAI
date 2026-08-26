@@ -92,6 +92,28 @@ cp .env.example .env
 docker compose up -d
 ```
 
+## One-command Local Startup
+
+Windows PowerShell:
+
+```powershell
+.\start.ps1
+```
+
+View status:
+
+```powershell
+.\status.ps1
+```
+
+Stop NexusAI:
+
+```powershell
+.\stop.ps1
+```
+
+The start command launches Docker Desktop when needed, starts PostgreSQL/pgvector and Redis, waits for both containers to become healthy, upgrades Alembic to `head`, and then starts the FastAPI backend and React/Vite frontend. The stop command stops only the backend/frontend processes recorded by these scripts and runs `docker compose stop`; it does not delete database or Redis volumes.
+
 ## Requirements
 
 - Python 3.12+
