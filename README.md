@@ -1,8 +1,65 @@
 # NexusAI
 
-NexusAI is an **Enterprise AI Workspace** foundation. Its long-term direction includes Enterprise Copilot, RAG and website knowledge, data and customer-service agents, document intelligence, coding agents, MCP, evaluation, and observability.
+> **Enterprise AI Workspace — from knowledge ingestion and Hybrid RAG to tool-using Agents, human approval, Text-to-SQL, customer service, and document intelligence.**
 
-It demonstrates an end-to-end enterprise AI architecture: ingestion and Hybrid RAG, grounded citations, a bounded LangGraph agent runtime, permissioned tools, human approval, safe Text-to-SQL, customer-service workflows, and deterministic document intelligence.
+NexusAI is a full-stack **LLM application engineering portfolio project** designed around the kinds of systems used in enterprise AI applications. Instead of stopping at a chatbot demo, the project connects data ingestion, retrieval, generation, agent orchestration, tool permissions, approval workflows, business applications, evaluation, and security boundaries into one extensible workspace.
+
+The project currently covers **Phase 1–5** and is intended to demonstrate practical engineering skills for LLM / AI Application Engineer roles: building reliable RAG pipelines, integrating structured and unstructured enterprise data, designing bounded agents, protecting high-risk tool calls, evaluating retrieval/agent behavior, and shipping the result as a usable FastAPI + React application.
+
+## What NexusAI Can Do
+
+| Capability | What is implemented |
+| --- | --- |
+| Knowledge ingestion | PDF, DOCX, TXT, Markdown, URL ingestion, bounded website crawling |
+| Hybrid RAG | pgvector semantic search + PostgreSQL FTS + RRF fusion + optional reranking |
+| Grounded answers | Context budgeting, source metadata, citation building/validation, SSE streaming |
+| Agent runtime | LangGraph state machine, planning, execution, verification, retries and bounded steps |
+| Tool system | Permissioned Tool Registry, knowledge search, read-only SQL, HTTP and web-search boundaries |
+| Human approval | High-risk actions pause, persist approval state, and resume after approve/reject |
+| AI Data Analyst | Schema retrieval → Text-to-SQL → SQL safety → PostgreSQL → table/chart/insight |
+| Customer Service | Customer/order context + policy RAG + refund eligibility + approval-gated action |
+| Document Intelligence | Structured extraction, summaries, deterministic risk rules, citations and comparison |
+| Evaluation | Deterministic RAG, Agent and business-workflow regression datasets and integration tests |
+
+## Why This Project Is More Than a Chatbot
+
+A basic LLM demo usually ends at `prompt → model → answer`. NexusAI focuses on the engineering layers around the model:
+
+```text
+Enterprise Data
+   │
+   ├── Files / URLs / Websites ──→ Ingestion ──→ Chunking ──→ Embeddings
+   │                                                     │
+   │                                                     ▼
+   │                                           PostgreSQL + pgvector
+   │                                                     │
+User ──→ React UI ──→ FastAPI ──→ Hybrid Retrieval ──→ RAG + Citations
+                           │
+                           ├──→ LangGraph Agent Runtime
+                           │       ├── Planner / Router / Verifier
+                           │       ├── Knowledge Tool
+                           │       ├── Read-only SQL Tool
+                           │       ├── HTTP / Web Tools
+                           │       └── Human Approval for high-risk actions
+                           │
+                           └──→ Business Applications
+                                   ├── AI Data Analyst
+                                   ├── Customer Service
+                                   └── Document Intelligence
+```
+
+The emphasis is on **grounding, permissions, observability, deterministic evaluation, and safe execution**, not merely generating fluent text.
+
+## Engineering Highlights
+
+- **Real Hybrid Retrieval:** pgvector cosine retrieval and PostgreSQL full-text retrieval run as separate paths and are fused with Reciprocal Rank Fusion (RRF).
+- **Source-grounded RAG:** retrieved chunks retain document/page/URL metadata and answers use validated `[1]`, `[2]` style citations.
+- **Bounded Agent Runtime:** LangGraph execution has explicit state, maximum steps, timeout/retry boundaries, verifier decisions and persistent run traces.
+- **Human-in-the-loop safety:** high-risk tools do not execute immediately; the run pauses until an approval decision is persisted and execution is resumed.
+- **Safe Text-to-SQL:** generated SQL is parsed with `sqlglot`, restricted to read-only queries, constrained by schema/table allowlists, statement timeout and row limits.
+- **SSRF-aware networking:** URL ingestion and HTTP tools reject localhost/private/reserved targets and revalidate redirects.
+- **Provider abstraction:** real OpenAI/Cohere/Tavily integrations can be configured while deterministic fake providers keep development and tests reproducible.
+- **Real database validation:** migrations, pgvector retrieval, PostgreSQL FTS, RRF and business workflows have integration paths against PostgreSQL rather than being UI-only mocks.
 
 ## Architecture
 
@@ -19,11 +76,12 @@ PostgreSQL + pgvector          Redis                     Auditable Traces
 
 ## Technology Stack
 
-- FastAPI, Pydantic v2, SQLAlchemy async, Alembic
-- React, TypeScript, Vite
-- PostgreSQL, pgvector, PostgreSQL Full Text Search, Redis
-- LangGraph, OpenAI provider abstractions, deterministic fake providers
-- Docker Compose, pytest, sqlglot
+- **Backend:** FastAPI, Pydantic v2, SQLAlchemy async, Alembic
+- **Frontend:** React, TypeScript, Vite
+- **Data:** PostgreSQL, pgvector, PostgreSQL Full Text Search, Redis
+- **LLM / Agent:** LangGraph, OpenAI provider abstractions, optional Cohere/Tavily providers
+- **Safety:** sqlglot AST validation, SSRF controls, tool allowlists, persisted human approval
+- **Engineering:** Docker Compose, pytest, deterministic evaluation fixtures
 
 ## Quick Start
 
@@ -34,16 +92,12 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Phase 1 provides a production-minded FastAPI/React foundation without prematurely implementing LLM or RAG behavior.
-
-Phase 2 adds real file and web ingestion, deterministic metadata-rich chunking, embedding provider boundaries, pgvector storage, website crawling, and vector retrieval.
-
 ## Requirements
 
 - Python 3.12+
 - Node.js 20+
 - PostgreSQL 15+ and Redis 7+, or Docker Compose
-- An OpenAI API key for real embeddings, or the deterministic `fake` provider for development
+- An OpenAI API key for real embeddings/generation, or deterministic fake providers for development
 
 ## Database Setup
 
@@ -70,14 +124,6 @@ uvicorn app.main:app --reload
 
 The API is available at `http://localhost:8000`, OpenAPI docs at `/docs`, and versioned endpoints under `/api/v1`.
 
-Core endpoints:
-
-- `GET /api/v1/health`
-- `POST /api/v1/users`, `GET /api/v1/users/{id}`
-- `POST /api/v1/workspaces`, `GET /api/v1/workspaces`, `GET /api/v1/workspaces/{id}`
-- `POST /api/v1/knowledge-bases`, `GET /api/v1/knowledge-bases`
-- `POST /api/v1/agents`, `GET /api/v1/agents`, `GET /api/v1/agents/{id}`
-
 ## Frontend Setup
 
 ```powershell
@@ -89,213 +135,175 @@ npm run dev
 
 Open `http://localhost:5173`. `VITE_API_BASE_URL` controls the backend URL and defaults to `http://localhost:8000` for local development.
 
-## Run Tests
+## Knowledge Base & Ingestion
+
+Phase 2 supports `.pdf`, `.docx`, `.txt`, and `.md` documents, individual HTTP(S) pages, and bounded same-domain website crawls. Source files use local storage in `backend/data/uploads`; chunks and embeddings are stored in PostgreSQL.
+
+The ingestion path is:
+
+```text
+File / URL / Website
+→ validation
+→ parsing / main-content extraction
+→ cleaning
+→ metadata-aware chunking
+→ embedding
+→ PostgreSQL + pgvector
+```
+
+PDF page numbers, filenames and URL metadata are retained so later RAG answers can point back to their sources.
+
+## Hybrid RAG
+
+Phase 3 combines pgvector semantic retrieval with PostgreSQL full-text keyword retrieval. Vector search finds semantic similarity while FTS preserves exact lexical matches. Reciprocal Rank Fusion merges both ranked lists before optional reranking.
+
+```text
+Query
+ ├──→ Vector Search ──┐
+ └──→ PostgreSQL FTS ─┤
+                      ▼
+                     RRF
+                      ▼
+                  Reranker
+                      ▼
+               Context Builder
+                      ▼
+                  Chat Model
+                      ▼
+             Citation Validation
+```
+
+Migration `20260825_0003` adds the generated `tsvector` and GIN index. The lexical retriever currently uses PostgreSQL cover-density ranking rather than claiming a full Okapi BM25 implementation.
+
+## Citation & Streaming
+
+Answers cite only sources that survive final context construction. Unknown citation IDs are removed and reported in the trace. `POST /api/v1/knowledge-bases/{id}/chat/stream` emits SSE metadata, token, citation, done and error events.
+
+## Agent Runtime
+
+Phase 4 adds a bounded LangGraph runtime:
+
+```text
+START
+→ Bootstrap
+→ Router
+→ Planner
+→ Executor
+→ Tool / Approval
+→ Verifier
+→ Continue / Replan / Complete / Fail
+```
+
+Agent state is JSON-serializable and runs persist structured steps and redacted traces. Agents can only call tools explicitly enabled for them.
+
+## Tool Calling & Human Approval
+
+The Tool Registry includes knowledge retrieval, AST-validated read-only SQL, SSRF-protected HTTP access, web-search provider boundaries and demo business actions.
+
+High-risk actions follow a separate execution path:
+
+```text
+Tool Call
+→ Risk Check
+→ Persist Approval Request
+→ Pause Run
+→ Approve / Reject
+→ Resume
+→ Execute or Cancel
+```
+
+This prevents a model from directly turning generated intent into an irreversible write action.
+
+## AI Data Analyst
+
+Phase 5 implements an enterprise analytics workflow:
+
+```text
+Natural-language Question
+→ Relevant Schema Retrieval
+→ Structured Text-to-SQL
+→ SQLReadOnlyTool Validation
+→ PostgreSQL
+→ Result Table
+→ Declarative Chart
+→ Grounded Insight
+```
+
+SQL execution remains behind the same read-only safety layer even when a failed query is repaired and regenerated.
+
+## Customer Service
+
+The Customer Service workflow combines customer/order lookup, policy retrieval and refund eligibility. Read operations can run directly, while a refund creation is a high-risk action that must pass the Phase 4 approval workflow before a database write occurs.
+
+## Document Intelligence
+
+Indexed documents can be classified, extracted into typed contract fields, summarized with chunk/page citations, checked by deterministic risk rules and compared at section level. The current comparison engine is intentionally described as section-level diff rather than professional legal redlining.
+
+## Evaluation & Testing
+
+NexusAI includes deterministic regression fixtures for RAG, Agent behavior and Phase 5 business workflows. These datasets are intended to catch regressions and demonstrate evaluation methodology; **they are not production benchmarks**.
+
+Examples:
 
 ```powershell
 cd backend
 pytest
-```
 
-The health test does not require a running database. Resource endpoints do require PostgreSQL and the applied migration.
-
-## Knowledge Base
-
-Phase 2 supports `.pdf`, `.docx`, `.txt`, and `.md` documents, individual HTTP(S) pages, and bounded same-domain website crawls. Source files use local storage in `backend/data/uploads`; chunks and embeddings are stored in PostgreSQL.
-
-## File Ingestion
-
-```bash
-curl -F "file=@annual-report.pdf" \
-  http://localhost:8000/api/v1/knowledge-bases/KNOWLEDGE_BASE_ID/documents/upload
-```
-
-Uploads default to a 50 MB maximum and are validated by extension and MIME type. PDF page numbers and original filenames are retained for citations.
-
-## URL Ingestion
-
-```bash
-curl -X POST http://localhost:8000/api/v1/knowledge-bases/KNOWLEDGE_BASE_ID/documents/url \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/article"}'
-```
-
-URL fetches enforce public HTTP(S), DNS/IP checks, bounded redirects, timeouts, and response size. Trafilatura extracts the main page content.
-
-## Website Crawl
-
-```bash
-curl -X POST http://localhost:8000/api/v1/knowledge-bases/KNOWLEDGE_BASE_ID/website-crawls \
-  -H "Content-Type: application/json" \
-  -d '{"root_url":"https://example.com","max_pages":20,"max_depth":2}'
-```
-
-The synchronous Phase 2 crawler follows normalized same-domain links, respects robots.txt, removes fragments, de-duplicates URLs, and continues past individual page failures.
-
-## Embeddings
-
-The default provider is OpenAI `text-embedding-3-small` with 1536 dimensions. The API starts normally without a key; ingestion and search return `EMBEDDING_PROVIDER_UNAVAILABLE`. For local deterministic development set `EMBEDDING_PROVIDER=fake` before running the migration so the configured vector dimension stays consistent.
-
-## pgvector
-
-Compose uses `pgvector/pgvector:pg17`. Migration `20260825_0002` creates the vector extension, ingestion tables, a cosine HNSW index, and the configured vector dimension. Do not change `EMBEDDING_DIMENSION` after migration without a dimension migration.
-
-## Vector Search
-
-```bash
-curl -X POST http://localhost:8000/api/v1/knowledge-bases/KNOWLEDGE_BASE_ID/search \
-  -H "Content-Type: application/json" \
-  -d '{"query":"What is the refund policy?","top_k":5}'
-```
-
-Results include cosine similarity, chunk text, document id, and citation metadata. Phase 3 layers keyword retrieval, fusion, reranking, and grounded generation over this reusable vector service.
-
-## Hybrid Retrieval
-
-Phase 3 combines pgvector semantic retrieval with PostgreSQL full-text keyword retrieval. Vector search finds meaning; FTS preserves exact terms. Reciprocal Rank Fusion (RRF) merges ranks, de-duplicates chunks, and retains original scores and ranks.
-
-## BM25 / PostgreSQL FTS
-
-Migration `20260825_0003` adds a stored `search_vector` generated with the `simple` configuration and a GIN index. `BM25Retriever` exposes the lexical path using PostgreSQL cover-density ranking; OpenSearch is deferred until scale requires it.
-
-## RRF and Reranking
-
-RRF uses `sum(1 / (RRF_K + rank))`. The default deterministic fake reranker is suitable for tests; set `RERANKER_PROVIDER=cohere` and `COHERE_API_KEY` for Cohere Rerank.
-
-## Query Rewrite and RAG Chat
-
-Conversation-aware rewrite uses the configured Chat Model and safely falls back to the original query. Chat is available at:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/knowledge-bases/KB_ID/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"What is the refund policy?","recent_messages":[]}'
-```
-
-Set `LLM_PROVIDER=fake` for deterministic local validation or configure `OPENAI_API_KEY` and `LLM_MODEL` for grounded OpenAI answers.
-
-## Citation and Streaming
-
-Answers cite only the final context as `[1]`, `[2]`. Unknown citation IDs are removed and reported in the trace. `POST /api/v1/knowledge-bases/{id}/chat/stream` emits SSE `metadata`, `token`, `citation`, `done`, and `error` events.
-
-## Evaluation
-
-The 20-case deterministic dataset supports Recall@5, Hit Rate@5, and MRR with regression thresholds:
-
-```powershell
-python -m app.evaluation.rag_eval --retriever vector
-python -m app.evaluation.rag_eval --retriever bm25
 python -m app.evaluation.rag_eval --retriever hybrid
-python -m app.evaluation.rag_eval --retriever rerank
+python -m app.evaluation.agent_eval
+python -m app.evaluation.business_eval --dataset evals/data_analyst.jsonl
 ```
 
-Unit tests exclude external APIs. Run the real PostgreSQL FTS + pgvector + RRF test with:
+Run PostgreSQL integration tests with:
 
 ```powershell
 $env:RUN_INTEGRATION='1'
 pytest -m integration -q
 ```
 
-## Environment Variables
+## Security Design
 
-See `backend/.env.example`. Phase 2 settings include `UPLOAD_DIRECTORY`, `MAX_UPLOAD_SIZE_MB`, URL timeouts/limits, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`, and `OPENAI_API_KEY`.
-
-## Phase 2 Usage
-
-1. Start Compose and apply `alembic upgrade head`.
-2. Create a user, workspace, and knowledge base through the Phase 1 APIs.
-3. Configure embeddings and start the backend/frontend.
-4. Open `/knowledge`, choose the knowledge base, and upload a file, add a URL, or crawl a website.
-5. Open its Search tab to inspect top-k pgvector matches and citation metadata.
+- Real `.env` files, uploads, virtual environments, dependency folders, build output, caches, logs, database files and Docker disks are excluded from Git.
+- API keys are loaded from environment variables; production credentials are not committed.
+- SQL tools use AST validation, one-statement enforcement, read-only transactions, timeouts, row limits and schema/table allowlists.
+- URL ingestion and HTTP tools reuse SSRF controls and reject localhost/private/reserved addresses.
+- High-risk tools pause for persisted human approval before execution.
+- Retrieved documents and tool output are treated as untrusted observations rather than instructions that can expand Agent permissions.
+- Trace redaction covers authorization, API-key, password, secret, token and cookie-like fields.
 
 ## Project Structure
 
 ```text
 backend/
+  app/agents/          Agent runtime, tools, approvals and traces
   app/api/             FastAPI routers
-  app/core/            settings, logging, exceptions
+  app/ai/              Chat / embedding provider abstractions
+  app/data/            Schema retrieval, Text-to-SQL and analysis
+  app/documents/       Document extraction, risks and comparison
+  app/knowledge/       Ingestion, retrieval, RAG, reranking and citations
   app/db/models/       SQLAlchemy domain models
-  app/repositories/    persistence operations
-  app/services/        application orchestration
-  app/schemas/         Pydantic API contracts
+  app/evaluation/      RAG / Agent / business evaluation
   migrations/          Alembic migrations
-  tests/               backend tests
+  evals/               deterministic evaluation datasets
+  tests/               unit and integration tests
 frontend/
+  src/pages/           Knowledge, Agent, Data, Customer and Document UIs
   src/api/             typed HTTP client
   src/components/      shared components
-  src/layouts/         workspace shell
-  src/pages/           application pages
-  src/routes/          route definitions
-infrastructure/        reserved for future deployment assets
 docs/                  architecture documentation
-docker-compose.yml     PostgreSQL and Redis services
+docker-compose.yml     PostgreSQL + pgvector and Redis
 ```
 
 ## Roadmap
 
-### Phase 1 — Foundation
+- **Phase 1 — Foundation:** FastAPI, React, PostgreSQL, Redis, migrations, core models and dashboard.
+- **Phase 2 — Knowledge Platform:** file/URL ingestion, website crawler, embeddings and pgvector retrieval.
+- **Phase 3 — Hybrid RAG:** vector + FTS, RRF, reranking, citations, streaming and retrieval evaluation.
+- **Phase 4 — Agent Runtime:** LangGraph, permissioned tools, traces, SQL safety and human approval.
+- **Phase 5 — Business Applications:** AI Data Analyst, Customer Service and Document Intelligence.
+- **Phase 6 — Planned:** MCP + Coding Agent.
+- **Phase 7 — Planned:** deeper evaluation, observability and security hardening.
 
-FastAPI, React, PostgreSQL, Redis, migrations, core models, APIs, tests, and dashboard.
+## Current Scope
 
-### Phase 2 — Knowledge Base + URL + Website + RAG
-
-### Phase 3 — Hybrid RAG + Reranking + Citation + Evaluation
-
-### Phase 4 — Agent Runtime + Tools + Human Approval
-
-### Phase 5 — Data Analyst + Customer Service + Document Intelligence
-
-### Phase 6 — MCP + Coding Agent
-
-### Phase 7 — Evaluation + Observability + Security
-
-## Security
-
-- Real `.env` files, uploads, virtual environments, dependency folders, build output, caches, logs, database files, and Docker disks are excluded from Git.
-- API keys are optional and loaded from environment variables; no production credentials are committed.
-- SQL tools use AST validation, one-statement enforcement, read-only transactions, timeouts, row limits, and schema/table allowlists.
-- HTTP tools reuse SSRF controls and reject localhost/private addresses.
-- High-risk tools pause for persisted human approval before execution.
-- Retrieved documents and tool output are treated as untrusted data.
-
-Evaluation numbers in this repository come from deterministic regression fixtures and demo datasets. They are development safeguards, not production benchmarks.
-## Agent Runtime
-
-Phase 4 adds a bounded LangGraph runtime with Router, structured Planner, Executor, Tool nodes, Verifier, JSON-serializable working state, retries, timeout, maximum steps, and persistent traces.
-
-## Tool Calling
-
-Tools are centrally registered and explicitly enabled per agent. Included tools are Phase 3 Knowledge Search, AST-validated SQL Read Only, SSRF-protected HTTP GET, approval-gated HTTP POST, Fake/Tavily Web Search, and a demo high-risk refund tool.
-
-## Human Approval
-
-High-risk calls pause before execution. Decide with `POST /api/v1/agent-approvals/{id}/approve` or `/reject`, then continue with `POST /api/v1/agent-runs/{run_id}/resume`.
-
-```bash
-curl -X POST http://localhost:8000/api/v1/agents/AGENT_ID/runs -H "Content-Type: application/json" -d '{"message":"Check customer C1001 orders and the refund policy","knowledge_base_id":"KB_ID","debug":true}'
-curl http://localhost:8000/api/v1/agent-runs
-curl http://localhost:8000/api/v1/tools
-```
-
-## Agent Evaluation
-
-Run `python -m app.evaluation.agent_eval`. The deterministic 20-task fixture measures completion, tool selection, tool success, average steps, approval correctness, and loop rate. It is a regression fixture, not a production quality claim.
-
-## AI Data Analyst
-
-Phase 5 provides workspace data sources, Schema Catalog/Search, structured Text-to-SQL through the shared ChatModel, mandatory SQLReadOnlyTool validation, bounded repair, tables, declarative charts, grounded insights, and a deterministic 240-order demo. See `docs/data-analyst.md`.
-
-## Customer Service
-
-The Customer Service Agent combines customer/order lookup, Phase 3 policy retrieval, ticket operations, refund preparation, and Phase 4 approval-gated writes. It does not receive arbitrary HTTP or web access by default. See `docs/customer-service.md`.
-
-## Document Intelligence
-
-Indexed documents can be classified, extracted into Pydantic contract fields, checked by deterministic risk rules, summarized with chunk/page citations, and compared at section level. See `docs/document-intelligence.md`.
-
-Phase 5 evaluation fixtures:
-
-```powershell
-python -m app.evaluation.business_eval --dataset evals/data_analyst.jsonl
-python -m app.evaluation.business_eval --dataset evals/customer_service.jsonl
-python -m app.evaluation.business_eval --dataset evals/document_intelligence.jsonl
-```
+NexusAI is an engineering portfolio / development project, not a production SaaS claim. Some external-provider paths require API keys, deterministic fake providers are intentionally used in regression tests, and several Phase 6–7 capabilities remain on the roadmap. The goal is to make those boundaries explicit while keeping the implemented paths testable and inspectable.
