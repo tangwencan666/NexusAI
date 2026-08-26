@@ -144,7 +144,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-The API is available at `http://localhost:8000`, OpenAPI docs at `/docs`, and versioned endpoints under `/api/v1`.
+The API is available at `http://127.0.0.1:8000`, OpenAPI docs at `/docs`, and versioned endpoints under `/api/v1`.
 
 ## Frontend Setup
 
@@ -155,7 +155,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. `VITE_API_BASE_URL` controls the backend URL and defaults to `http://localhost:8000` for local development.
+Open `http://127.0.0.1:5173`. `VITE_API_BASE_URL` controls the backend URL and defaults to `http://127.0.0.1:8000` for local development. The backend also permits `http://localhost:5173` as a local CORS origin.
 
 ## Knowledge Base & Ingestion
 

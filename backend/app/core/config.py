@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://nexusai:nexusai_dev_password@localhost:5432/nexusai"
     redis_url: str = "redis://localhost:6379/0"
-    backend_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    backend_cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
+    )
     upload_directory: str = "data/uploads"
     max_upload_size_mb: int = 50
     max_url_response_size_mb: int = 10
