@@ -1,0 +1,1 @@
+面向知识检索与 Agent 编排的全栈实验项目，基于 FastAPI、pgvector 和 LangGraph，支持文档入库、混合检索、来源引用与审批流程，明确区分默认 Fake 组件和真实模型能力。

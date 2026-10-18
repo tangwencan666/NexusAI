@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "0cd318b510dedde113584ca3c431ce97ee977094",
+  "scope": "fresh clone plus six-source candidate overlay; offline acceptance",
+  "real_model_requests": 0,
+  "business_tests_rerun": true,
+  "historical_evidence": [
+    {
+      "date_or_version": "2026-10-18 前一阶段",
+      "scope": "74 项离线测试及健康检查，已由本次独立重验替代",
+      "evidence": "docs/PORTFOLIO_VERIFICATION.md",
+      "sha256": "438f82f940245a4e355711f3e579ebb2c3c18798a4b22b6afcfde0dad836c8ea",
+      "containing_source_snapshot": "0cd318b510dedde113584ca3c431ce97ee977094",
+      "binding": "hash identifies retained evidence in this source snapshot; does not assert the historical run used current working tree"
+    }
+  ],
+  "tests": {
+    "import": {
+      "exit_code": 0,
+      "label": "nexus-import",
+      "seconds": 5.79,
+      "command": [
+        "python",
+        "-B",
+        "-c",
+        "import importlib; importlib.import_module('app.main'); importlib.import_module('app.data.analysis'); importlib.import_module('app.data.models'); importlib.import_module('app.data.service'); importlib.import_module('app.data.text_to_sql'); importlib.import_module('app.data.schema.catalog'); importlib.import_module('app.data.schema.retrieval'); print(\"IMPORT_OK\")"
+      ],
+      "cwd": "backend",
+      "log": "results/nexus-import.log",
+      "date": "2026-10-18"
+    },
+    "unit": {
+      "exit_code": 0,
+      "label": "nexus-unit",
+      "seconds": 6.69,
+      "command": [
+        "python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-m",
+        "not integration",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "test-tmp/nexus-unit",
+        "--junitxml",
+        "results/nexus-unit.xml"
+      ],
+      "cwd": "backend",
+      "log": "results/nexus-unit.log",
+      "date": "2026-10-18",
+      "tests": 74,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sha256": "979e045571ee8882050c93e459c218ed3a1ed3a194a2fd1bab1918cbad9d22bf",
+      "artifact": "results/nexus-unit.xml"
+    },
+    "startup": {
+      "source": "isolated-project",
+      "status": "PASS",
+      "real_model_requests": 0,
+      "database_connected": false,
+      "http_status": 200,
+      "body": {
+        "status": "ok"
+      },
+      "isolated_process_stopped": true
+    },
+    "ignored_probes": {
+      "data/local.db": true,
+      "backend/data/uploads/private.pdf": true,
+      "backend/app/data/private.csv": true,
+      "backend/app/data/schema/private.sql": true,
+      "backend/app/data/__pycache__/x.pyc": true,
+      ".env": true,
+      "backend/.env": true
+    },
+    "included_six_sources": {
+      "backend/app/data/analysis.py": true,
+      "backend/app/data/models.py": true,
+      "backend/app/data/service.py": true,
+      "backend/app/data/text_to_sql.py": true,
+      "backend/app/data/schema/catalog.py": true,
+      "backend/app/data/schema/retrieval.py": true
+    },
+    "integration": {
+      "status": "NOT_EXECUTED",
+      "deselected": 3,
+      "reason": "legacy RAG integration test hardcodes localhost:5432; no safely configured independent database; RUN_INTEGRATION=0"
+    },
+    "candidate_base": "0cd318b510dedde113584ca3c431ce97ee977094"
+  },
+  "source_allowlist": [
+    "backend/app/data/analysis.py",
+    "backend/app/data/models.py",
+    "backend/app/data/service.py",
+    "backend/app/data/text_to_sql.py",
+    "backend/app/data/schema/catalog.py",
+    "backend/app/data/schema/retrieval.py"
+  ],
+  "path_policy": "仅将本机绝对路径替换为可复现相对标签；原验收数字、退出码及证据 SHA-256 保持不变。"
+}

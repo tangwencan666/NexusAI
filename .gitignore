@@ -19,7 +19,14 @@ backend/.tmp/
 backend/data/uploads/
 data/uploads/
 uploads/
+# Runtime data stays ignored; retain only the data-analysis Python sources.
 data/
+!backend/app/data/
+backend/app/data/*
+!backend/app/data/*.py
+!backend/app/data/schema/
+backend/app/data/schema/*
+!backend/app/data/schema/*.py
 work/
 logs/
 *.pid
