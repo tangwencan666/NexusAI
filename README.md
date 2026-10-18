@@ -1,331 +1,106 @@
 # NexusAI
 
-> **Enterprise AI Workspace — from knowledge ingestion and Hybrid RAG to tool-using Agents, human approval, Text-to-SQL, customer service, and document intelligence.**
+面向企业文档检索、来源引用和受控工具编排的全栈开发项目。用户可建立知识库、导入文件或网页，通过混合检索获取回答，并在需要写入业务数据时进入人工审批流程。
 
-NexusAI is a full-stack **LLM application engineering portfolio project** designed around the kinds of systems used in enterprise AI applications. Instead of stopping at a chatbot demo, the project connects data ingestion, retrieval, generation, agent orchestration, tool permissions, approval workflows, business applications, evaluation, and security boundaries into one extensible workspace.
+**当前定位：工程实践项目，非生产 SaaS。** RAG 具备 OpenAI 接口与明确的 Fake Provider；Agent 默认 Planner、Router、Verifier 为规则/Fake 实现，不能视为已验证的真实模型自主规划。MCP 与 Coding Agent 仍属后续规划。
 
-The project currently covers **Phase 1–5** and is intended to demonstrate practical engineering skills for LLM / AI Application Engineer roles: building reliable RAG pipelines, integrating structured and unstructured enterprise data, designing bounded agents, protecting high-risk tool calls, evaluating retrieval/agent behavior, and shipping the result as a usable FastAPI + React application.
+## 1. 项目简介
 
-## What NexusAI Can Do
+项目关注从文档入库到可追溯回答的完整链路：解析、分块、Embedding、召回融合、上下文预算、引用校验及 SSE；同时提供受控 SQL、审批工作流和文档分析原型。
 
-| Capability | What is implemented |
+本分支修复源码遗漏：只放行 `backend/app/data/` 下的六个 Python 文件，数据库、用户上传、凭据和缓存继续忽略。此前 2026-10-18 独立副本完成导入、74 项离线测试和独立 HTTP 健康检查；真实 PostgreSQL 集成未在本轮执行。
+
+## 2. 技术栈
+
+| 层 | 已使用技术 |
 | --- | --- |
-| Knowledge ingestion | PDF, DOCX, TXT, Markdown, URL ingestion, bounded website crawling |
-| Hybrid RAG | pgvector semantic search + PostgreSQL FTS + RRF fusion + optional reranking |
-| Grounded answers | Context budgeting, source metadata, citation building/validation, SSE streaming |
-| Agent runtime | LangGraph state machine, planning, execution, verification, retries and bounded steps |
-| Tool system | Permissioned Tool Registry, knowledge search, read-only SQL, HTTP and web-search boundaries |
-| Human approval | High-risk actions pause, persist approval state, and resume after approve/reject |
-| AI Data Analyst | Schema retrieval → Text-to-SQL → SQL safety → PostgreSQL → table/chart/insight |
-| Customer Service | Customer/order context + policy RAG + refund eligibility + approval-gated action |
-| Document Intelligence | Structured extraction, summaries, deterministic risk rules, citations and comparison |
-| Evaluation | Deterministic RAG, Agent and business-workflow regression datasets and integration tests |
+| 后端 | Python 3.12+、FastAPI、Pydantic、SQLAlchemy async、Alembic |
+| AI / 检索 | LangGraph、OpenAI 接口、pgvector、PostgreSQL FTS、RRF，可选 Cohere/Tavily |
+| 存储 | PostgreSQL、Redis、本地文件存储 |
+| 前端 | React、TypeScript、Vite |
+| 工程 | Docker Compose、pytest；前端依赖以 lockfile 为准 |
 
-## Why This Project Is More Than a Chatbot
+## 3. 系统架构
 
-A basic LLM demo usually ends at `prompt → model → answer`. NexusAI focuses on the engineering layers around the model:
-
-```text
-Enterprise Data
-   │
-   ├── Files / URLs / Websites ──→ Ingestion ──→ Chunking ──→ Embeddings
-   │                                                     │
-   │                                                     ▼
-   │                                           PostgreSQL + pgvector
-   │                                                     │
-User ──→ React UI ──→ FastAPI ──→ Hybrid Retrieval ──→ RAG + Citations
-                           │
-                           ├──→ LangGraph Agent Runtime
-                           │       ├── Planner / Router / Verifier
-                           │       ├── Knowledge Tool
-                           │       ├── Read-only SQL Tool
-                           │       ├── HTTP / Web Tools
-                           │       └── Human Approval for high-risk actions
-                           │
-                           └──→ Business Applications
-                                   ├── AI Data Analyst
-                                   ├── Customer Service
-                                   └── Document Intelligence
+```mermaid
+flowchart LR
+  UI["React / TypeScript"] --> API["FastAPI API"]
+  API --> ING["解析 / 分块 / 入库"]
+  ING --> EMB["Embedding Provider"]
+  EMB --> PG[("PostgreSQL / pgvector")]
+  API --> RAG["Vector + FTS + RRF / 引用校验"]
+  RAG --> PG
+  RAG --> LLM["Chat Provider: OpenAI 或 Fake"]
+  API --> GRAPH["LangGraph / 默认规则与 Fake 编排"]
+  GRAPH --> APPROVAL["持久化人工审批"]
+  GRAPH --> TOOLS["知识检索 / 只读 SQL / HTTP 工具"]
+  TOOLS --> PG
+  API --> REDIS[("Redis 查询与向量缓存")]
 ```
 
-The emphasis is on **grounding, permissions, observability, deterministic evaluation, and safe execution**, not merely generating fluent text.
+Compose 当前只启动 PostgreSQL/pgvector 和 Redis，API 与前端由本地进程启动；没有完整应用容器部署通过声明。
 
-## Engineering Highlights
+## 4. 核心功能
 
-- **Real Hybrid Retrieval:** pgvector cosine retrieval and PostgreSQL full-text retrieval run as separate paths and are fused with Reciprocal Rank Fusion (RRF).
-- **Source-grounded RAG:** retrieved chunks retain document/page/URL metadata and answers use validated `[1]`, `[2]` style citations.
-- **Bounded Agent Runtime:** LangGraph execution has explicit state, maximum steps, timeout/retry boundaries, verifier decisions and persistent run traces.
-- **Human-in-the-loop safety:** high-risk tools do not execute immediately; the run pauses until an approval decision is persisted and execution is resumed.
-- **Safe Text-to-SQL:** generated SQL is parsed with `sqlglot`, restricted to read-only queries, constrained by schema/table allowlists, statement timeout and row limits.
-- **SSRF-aware networking:** URL ingestion and HTTP tools reject localhost/private/reserved targets and revalidate redirects.
-- **Provider abstraction:** real OpenAI/Cohere/Tavily integrations can be configured while deterministic fake providers keep development and tests reproducible.
-- **Real database validation:** migrations, pgvector retrieval, PostgreSQL FTS, RRF and business workflows have integration paths against PostgreSQL rather than being UI-only mocks.
+| 能力 | 源码入口 |
+| --- | --- |
+| PDF、DOCX、TXT、Markdown、URL 与受限网站入库 | [ingestion](backend/app/knowledge/ingestion/pipeline.py)、[parsers](backend/app/knowledge/parsers/) |
+| 混合召回、上下文预算、引用及 SSE | [hybrid.py](backend/app/knowledge/retrieval/hybrid.py)、[RAG pipeline](backend/app/knowledge/rag/pipeline.py) |
+| 工具权限、审批暂停与恢复 | [Agent Runtime](backend/app/agents/runtime/executor.py)、[审批服务](backend/app/agents/approval/service.py) |
+| Schema 检索、Text-to-SQL 与只读执行 | [data](backend/app/data/)、[SQLReadOnlyTool](backend/app/agents/tools/sql_readonly.py) |
+| 客服审批及合同字段、规则风险、章节比较 | [customer tools](backend/app/agents/tools/customer.py)、[documents](backend/app/documents/) |
 
-## Architecture
+## 5. 关键工程实现与源码位置
 
-```text
-React + TypeScript
-        |
-FastAPI / Pydantic
-        |
-RAG Pipeline -------- LangGraph Agent Runtime -------- Business Applications
-Vector + FTS + RRF    Tool Registry + Approval        Data / Customer / Documents
-        |                         |                              |
-PostgreSQL + pgvector          Redis                     Auditable Traces
-```
+- **召回结果需要兼顾语义与关键词。** 独立向量检索和 PostgreSQL FTS 经 RRF 融合，再构建上下文与合法引用；见 [HybridRetriever](backend/app/knowledge/retrieval/hybrid.py) 与 [RAG 测试](backend/tests/test_rag.py)。文件名 `bm25.py` 中实际为 FTS cover-density ranking，不宣称完整 Okapi BM25。
+- **模型生成 SQL 不能直接执行。** [sql_readonly.py](backend/app/agents/tools/sql_readonly.py) 使用 sqlglot、只读事务、Schema/Table allowlist、行数和超时限制。它是应用级控制，不能替代生产数据库最小权限账户。
+- **高风险意图需要独立确认。** 工具调用先保存审批，运行进入 waiting 状态，再按持久化决定恢复；当前不宣称任意节点崩溃后的 exactly-once 执行。
 
-## Technology Stack
+## 6. 本地部署教程
 
-- **Backend:** FastAPI, Pydantic v2, SQLAlchemy async, Alembic
-- **Frontend:** React, TypeScript, Vite
-- **Data:** PostgreSQL, pgvector, PostgreSQL Full Text Search, Redis
-- **LLM / Agent:** LangGraph, OpenAI provider abstractions, optional Cohere/Tavily providers
-- **Safety:** sqlglot AST validation, SSRF controls, tool allowlists, persisted human approval
-- **Engineering:** Docker Compose, pytest, deterministic evaluation fixtures
+环境：Python 3.12+、Node.js（满足已锁定 Vite 的要求）、Docker Compose。仅在新的开发工作目录执行；真实 API Key 不进入示例、前端或 Git。
 
-## Quick Start
-
-```bash
+```powershell
 git clone https://github.com/tangwencan666/NexusAI.git
 cd NexusAI
-cp .env.example .env
-docker compose up -d
-```
-
-## One-command Local Startup
-
-Windows PowerShell:
-
-```powershell
-.\start.ps1
-```
-
-View status:
-
-```powershell
-.\status.ps1
-```
-
-Stop NexusAI:
-
-```powershell
-.\stop.ps1
-```
-
-The start command launches Docker Desktop when needed, starts PostgreSQL/pgvector and Redis, waits for both containers to become healthy, upgrades Alembic to `head`, and then starts the FastAPI backend and React/Vite frontend. The stop command stops only the backend/frontend processes recorded by these scripts and runs `docker compose stop`; it does not delete database or Redis volumes.
-
-## Requirements
-
-- Python 3.12+
-- Node.js 20+
-- PostgreSQL 15+ and Redis 7+, or Docker Compose
-- An OpenAI API key for real embeddings/generation, or deterministic fake providers for development
-
-## Database Setup
-
-From the project root:
-
-```powershell
 Copy-Item .env.example .env
 docker compose up -d
-```
-
-The Compose file starts PostgreSQL on port 5432 and Redis on port 6379 with persistent volumes. Change `POSTGRES_PASSWORD` outside local development; no real secrets are committed.
-
-## Backend Setup
-
-```powershell
 cd backend
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
+./.venv/Scripts/python.exe -m pip install -e ".[dev]"
 Copy-Item .env.example .env
-alembic upgrade head
-uvicorn app.main:app --reload
+# 编辑本机私有配置：LLM_PROVIDER=fake、EMBEDDING_PROVIDER=fake 可用于离线开发
+./.venv/Scripts/python.exe -m alembic upgrade head
+./.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The API is available at `http://127.0.0.1:8000`, OpenAPI docs at `/docs`, and versioned endpoints under `/api/v1`.
+另开终端进入 `frontend`，执行 `npm ci`、`npm run dev`，访问 `http://127.0.0.1:5173`。健康接口为 `http://127.0.0.1:8000/api/v1/health`，OpenAPI 为 `/docs`。已有环境也可阅读 [启动脚本](scripts/start-nexusai.ps1) 后运行根目录 `start.ps1`。
 
-## Frontend Setup
+必要配置为数据库/Redis 地址、`LLM_PROVIDER` 和 `EMBEDDING_PROVIDER`。只有明确选择真实供应商并自行注入服务端 Key 后才使用外部模型。Compose 默认开发口令与端口绑定不适合公网生产。
 
-```powershell
-cd frontend
-Copy-Item .env.example .env
-npm install
-npm run dev
-```
+**请使用包含六个源码文件的完整版本。** 本分支已包含修复；如果只在 Pull Request 中看到本文，合并前需先检出对应 PR 分支，再执行上述步骤。若出现 `app.data` 导入错误，检查是否已包含完整源码；数据库连接失败时先核对私有配置与 Compose 健康状态，不清空卷。
 
-Open `http://127.0.0.1:5173`. `VITE_API_BASE_URL` controls the backend URL and defaults to `http://127.0.0.1:8000` for local development. The backend also permits `http://localhost:5173` as a local CORS origin.
+## 7. 真实运行截图
 
-## Knowledge Base & Ingestion
+待补充真实前端运行截图。本轮仅验证了隔离 API 导入和健康接口，没有生成或拼接界面，也没有公开演示地址。
 
-Phase 2 supports `.pdf`, `.docx`, `.txt`, and `.md` documents, individual HTTP(S) pages, and bounded same-domain website crawls. Source files use local storage in `backend/data/uploads`; chunks and embeddings are stored in PostgreSQL.
-
-The ingestion path is:
-
-```text
-File / URL / Website
-→ validation
-→ parsing / main-content extraction
-→ cleaning
-→ metadata-aware chunking
-→ embedding
-→ PostgreSQL + pgvector
-```
-
-PDF page numbers, filenames and URL metadata are retained so later RAG answers can point back to their sources.
-
-## Hybrid RAG
-
-Phase 3 combines pgvector semantic retrieval with PostgreSQL full-text keyword retrieval. Vector search finds semantic similarity while FTS preserves exact lexical matches. Reciprocal Rank Fusion merges both ranked lists before optional reranking.
-
-```text
-Query
- ├──→ Vector Search ──┐
- └──→ PostgreSQL FTS ─┤
-                      ▼
-                     RRF
-                      ▼
-                  Reranker
-                      ▼
-               Context Builder
-                      ▼
-                  Chat Model
-                      ▼
-             Citation Validation
-```
-
-Migration `20260825_0003` adds the generated `tsvector` and GIN index. The lexical retriever currently uses PostgreSQL cover-density ranking rather than claiming a full Okapi BM25 implementation.
-
-## Citation & Streaming
-
-Answers cite only sources that survive final context construction. Unknown citation IDs are removed and reported in the trace. `POST /api/v1/knowledge-bases/{id}/chat/stream` emits SSE metadata, token, citation, done and error events.
-
-## Agent Runtime
-
-Phase 4 adds a bounded LangGraph runtime:
-
-```text
-START
-→ Bootstrap
-→ Router
-→ Planner
-→ Executor
-→ Tool / Approval
-→ Verifier
-→ Continue / Replan / Complete / Fail
-```
-
-Agent state is JSON-serializable and runs persist structured steps and redacted traces. Agents can only call tools explicitly enabled for them.
-
-## Tool Calling & Human Approval
-
-The Tool Registry includes knowledge retrieval, AST-validated read-only SQL, SSRF-protected HTTP access, web-search provider boundaries and demo business actions.
-
-High-risk actions follow a separate execution path:
-
-```text
-Tool Call
-→ Risk Check
-→ Persist Approval Request
-→ Pause Run
-→ Approve / Reject
-→ Resume
-→ Execute or Cancel
-```
-
-This prevents a model from directly turning generated intent into an irreversible write action.
-
-## AI Data Analyst
-
-Phase 5 implements an enterprise analytics workflow:
-
-```text
-Natural-language Question
-→ Relevant Schema Retrieval
-→ Structured Text-to-SQL
-→ SQLReadOnlyTool Validation
-→ PostgreSQL
-→ Result Table
-→ Declarative Chart
-→ Grounded Insight
-```
-
-SQL execution remains behind the same read-only safety layer even when a failed query is repaired and regenerated.
-
-## Customer Service
-
-The Customer Service workflow combines customer/order lookup, policy retrieval and refund eligibility. Read operations can run directly, while a refund creation is a high-risk action that must pass the Phase 4 approval workflow before a database write occurs.
-
-## Document Intelligence
-
-Indexed documents can be classified, extracted into typed contract fields, summarized with chunk/page citations, checked by deterministic risk rules and compared at section level. The current comparison engine is intentionally described as section-level diff rather than professional legal redlining.
-
-## Evaluation & Testing
-
-NexusAI includes deterministic regression fixtures for RAG, Agent behavior and Phase 5 business workflows. These datasets are intended to catch regressions and demonstrate evaluation methodology; **they are not production benchmarks**.
-
-Examples:
+## 8. 测试结果与已知限制
 
 ```powershell
 cd backend
-pytest
-
-python -m app.evaluation.rag_eval --retriever hybrid
-python -m app.evaluation.agent_eval
-python -m app.evaluation.business_eval --dataset evals/data_analyst.jsonl
+./.venv/Scripts/python.exe -m pytest -m "not integration" -q
+# 暂不直接启用 RUN_INTEGRATION：现有一个测试硬编码 localhost:5432，见下方限制
 ```
 
-Run PostgreSQL integration tests with:
+| 验证 | 2026-10-18 结果与边界 |
+| --- | --- |
+| 2026-10-18 独立克隆与六源码补丁 | 六个模块可导入；独立 uvicorn 健康接口 HTTP 200 |
+| 离线测试 | 74 passed，3 integration 用例 deselected；没有付费模型请求 |
+| 真实 PostgreSQL / Redis / 供应商 | 本轮未重跑，不以 Fake 测试替代 |
+| 链接与架构 | 随本轮文档校验，详见下方验证记录 |
 
-```powershell
-$env:RUN_INTEGRATION='1'
-pytest -m integration -q
-```
+当前缺少生产身份治理、完整多租户权限和部署验收；Workspace 数据模型不等同于租户隔离。Text-to-SQL 还包含显式演示规则；真实模型效果没有系统评测结论。现有 `test_rag_integration.py` 硬编码 localhost:5432 开发 DSN，不能仅设置 RUN_INTEGRATION 就安全切换到独立数据库；需后续单独改造测试配置，本轮没有执行它。
 
-## Security Design
+[阶段 B 历史记录](docs/PORTFOLIO_VERIFICATION.md) · [架构说明](docs/architecture.md) · [原 README 历史](docs/history/README.before-portfolio-20261018.md)
 
-- Real `.env` files, uploads, virtual environments, dependency folders, build output, caches, logs, database files and Docker disks are excluded from Git.
-- API keys are loaded from environment variables; production credentials are not committed.
-- SQL tools use AST validation, one-statement enforcement, read-only transactions, timeouts, row limits and schema/table allowlists.
-- URL ingestion and HTTP tools reuse SSRF controls and reject localhost/private/reserved addresses.
-- High-risk tools pause for persisted human approval before execution.
-- Retrieved documents and tool output are treated as untrusted observations rather than instructions that can expand Agent permissions.
-- Trace redaction covers authorization, API-key, password, secret, token and cookie-like fields.
-
-## Project Structure
-
-```text
-backend/
-  app/agents/          Agent runtime, tools, approvals and traces
-  app/api/             FastAPI routers
-  app/ai/              Chat / embedding provider abstractions
-  app/data/            Schema retrieval, Text-to-SQL and analysis
-  app/documents/       Document extraction, risks and comparison
-  app/knowledge/       Ingestion, retrieval, RAG, reranking and citations
-  app/db/models/       SQLAlchemy domain models
-  app/evaluation/      RAG / Agent / business evaluation
-  migrations/          Alembic migrations
-  evals/               deterministic evaluation datasets
-  tests/               unit and integration tests
-frontend/
-  src/pages/           Knowledge, Agent, Data, Customer and Document UIs
-  src/api/             typed HTTP client
-  src/components/      shared components
-docs/                  architecture documentation
-docker-compose.yml     PostgreSQL + pgvector and Redis
-```
-
-## Roadmap
-
-- **Phase 1 — Foundation:** FastAPI, React, PostgreSQL, Redis, migrations, core models and dashboard.
-- **Phase 2 — Knowledge Platform:** file/URL ingestion, website crawler, embeddings and pgvector retrieval.
-- **Phase 3 — Hybrid RAG:** vector + FTS, RRF, reranking, citations, streaming and retrieval evaluation.
-- **Phase 4 — Agent Runtime:** LangGraph, permissioned tools, traces, SQL safety and human approval.
-- **Phase 5 — Business Applications:** AI Data Analyst, Customer Service and Document Intelligence.
-- **Phase 6 — Planned:** MCP + Coding Agent.
-- **Phase 7 — Planned:** deeper evaluation, observability and security hardening.
-
-## Current Scope
-
-NexusAI is an engineering portfolio / development project, not a production SaaS claim. Some external-provider paths require API keys, deterministic fake providers are intentionally used in regression tests, and several Phase 6–7 capabilities remain on the roadmap. The goal is to make those boundaries explicit while keeping the implemented paths testable and inspectable.
+[本地验收记录](docs/LOCAL_ACCEPTANCE.md) · [测试证据及版本索引](docs/TEST_EVIDENCE.md)

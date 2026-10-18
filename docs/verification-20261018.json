@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-18",
+  "real_model_requests": 0,
+  "remote_mutations": 0,
+  "original_services_started_or_restarted": false,
+  "unit": {
+    "artifact": "nexus-unit.xml",
+    "sha256": "7f59050bad18606e6ffec54c199fa33a5582b83e39a98ef9af2d894e23e62171",
+    "tests": 74,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "startup": {
+    "source": "isolated-project",
+    "local_only": true,
+    "real_model_calls": 0,
+    "status": "PASS",
+    "health_http_status": 200
+  },
+  "integration": "NOT_EXECUTED; legacy RAG test hardcodes localhost:5432",
+  "path_policy": "仅将本机绝对路径替换为可复现相对标签；原验收数字、退出码及证据 SHA-256 保持不变。"
+}
