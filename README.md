@@ -4,7 +4,15 @@
 
 NexusAI is a full-stack **LLM application engineering portfolio project** designed around the kinds of systems used in enterprise AI applications. Instead of stopping at a chatbot demo, the project connects data ingestion, retrieval, generation, agent orchestration, tool permissions, approval workflows, business applications, evaluation, and security boundaries into one extensible workspace.
 
-The project currently covers **Phase 1–5** and is intended to demonstrate practical engineering skills for LLM / AI Application Engineer roles: building reliable RAG pipelines, integrating structured and unstructured enterprise data, designing bounded agents, protecting high-risk tool calls, evaluating retrieval/agent behavior, and shipping the result as a usable FastAPI + React application.
+The source is organized around **Phase 1–5** engineering areas for LLM / AI Application Engineer roles: RAG pipelines, structured and unstructured data, bounded agent workflows, approval, evaluation, and a FastAPI + React interface. The current public snapshot has the publication and validation gaps below; the feature list is not a claim that every path is runnable or production-ready.
+
+## Current Validation Status
+
+Documentation review: **2026-11-05**. This was a source and repository inspection, not a new application test run.
+
+- **Source publication gap:** the tracked tree does not contain `backend/app/data/`, although [the data-analysis route](backend/app/api/routes/data_analyst.py) imports `app.data.models` and `app.data.service` and is loaded by [the API router](backend/app/api/router.py). A clean checkout therefore has an unresolved backend import risk. Restore and verify the missing source before treating the public snapshot as a runnable full application. The broad `data/` rule in [.gitignore](.gitignore) needs checking; its role in the omission has not been confirmed.
+- **Agent planning is deterministic:** the API constructs [AgentRuntime](backend/app/agents/runtime/executor.py) with `FakePlanner`, `FakeRouter`, and `FakeVerifier`. The LangGraph, tools, traces, and approval flow are inspectable engineering implementations; configuring a chat provider does not turn these components into a verified model-driven planner.
+- **Validation evidence:** test commands below describe how to check the project. This review did not rerun unit/integration tests, real providers, browser flows, or deployment, and adds no new pass counts.
 
 ## What NexusAI Can Do
 
@@ -13,10 +21,10 @@ The project currently covers **Phase 1–5** and is intended to demonstrate prac
 | Knowledge ingestion | PDF, DOCX, TXT, Markdown, URL ingestion, bounded website crawling |
 | Hybrid RAG | pgvector semantic search + PostgreSQL FTS + RRF fusion + optional reranking |
 | Grounded answers | Context budgeting, source metadata, citation building/validation, SSE streaming |
-| Agent runtime | LangGraph state machine, planning, execution, verification, retries and bounded steps |
+| Agent runtime | LangGraph state machine, deterministic planner/router/verifier, tool execution, retries and bounded steps |
 | Tool system | Permissioned Tool Registry, knowledge search, read-only SQL, HTTP and web-search boundaries |
 | Human approval | High-risk actions pause, persist approval state, and resume after approve/reject |
-| AI Data Analyst | Schema retrieval → Text-to-SQL → SQL safety → PostgreSQL → table/chart/insight |
+| AI Data Analyst | Intended schema → SQL → table/chart workflow; public snapshot is missing the imported `app.data` module, so this path is not currently verified runnable |
 | Customer Service | Customer/order context + policy RAG + refund eligibility + approval-gated action |
 | Document Intelligence | Structured extraction, summaries, deterministic risk rules, citations and comparison |
 | Evaluation | Deterministic RAG, Agent and business-workflow regression datasets and integration tests |
@@ -85,6 +93,8 @@ PostgreSQL + pgvector          Redis                     Auditable Traces
 
 ## Quick Start
 
+**The commands below start only PostgreSQL and Redis.** They do not start the API or UI, install dependencies, or resolve the source publication gap above. After the missing source has been restored and verified, continue with Backend Setup and Frontend Setup.
+
 ```bash
 git clone https://github.com/tangwencan666/NexusAI.git
 cd NexusAI
@@ -93,6 +103,8 @@ docker compose up -d
 ```
 
 ## One-command Local Startup
+
+For an already prepared Windows development checkout only: complete Backend Setup and Frontend Setup, create the local environment files, and resolve the source gap above first. The script expects `backend/.venv/Scripts/python.exe` and installed frontend dependencies; it is not a first-time installer. Automatic Docker Desktop launch currently uses a developer-specific installation path, so start Docker yourself if it is installed elsewhere.
 
 Windows PowerShell:
 
@@ -238,7 +250,7 @@ This prevents a model from directly turning generated intent into an irreversibl
 
 ## AI Data Analyst
 
-Phase 5 implements an enterprise analytics workflow:
+Phase 5 describes the following analytics workflow. The public snapshot currently lacks the imported `app.data` implementation; this section records the intended flow, not a completed clean-checkout acceptance:
 
 ```text
 Natural-language Question
@@ -328,4 +340,4 @@ docker-compose.yml     PostgreSQL + pgvector and Redis
 
 ## Current Scope
 
-NexusAI is an engineering portfolio / development project, not a production SaaS claim. Some external-provider paths require API keys, deterministic fake providers are intentionally used in regression tests, and several Phase 6–7 capabilities remain on the roadmap. The goal is to make those boundaries explicit while keeping the implemented paths testable and inspectable.
+NexusAI is an engineering portfolio / development project, not a production SaaS claim. The public source publication gap and deterministic Agent components in Current Validation Status remain unresolved. Some external-provider paths require API keys, deterministic fake providers are intentionally used in regression tests, and several Phase 6–7 capabilities remain on the roadmap. The goal is to make those boundaries explicit while keeping the implemented paths testable and inspectable.
